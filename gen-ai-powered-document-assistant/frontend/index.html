@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gen-AI Document Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e8eaf6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(90deg, #7c83fd, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 700;
+    }
+    header p { color: #9ca3af; margin-top: 6px; font-size: 0.95rem; }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: #1a1d2e;
+      border: 1px solid #2d2f45;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #a5b4fc;
+      margin-bottom: 14px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Upload */
+    .upload-zone {
+      border: 2px dashed #3b3f5c;
+      border-radius: 8px;
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .upload-zone:hover { border-color: #7c83fd; }
+    .upload-zone input { display: none; }
+    .upload-zone p { color: #6b7280; font-size: 0.9rem; }
+    .upload-zone .icon { font-size: 2.4rem; margin-bottom: 8px; }
+
+    .btn {
+      display: inline-block;
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #7c83fd; color: #fff; }
+    .btn-danger  { background: #ef4444; color: #fff; font-size: 0.8rem; padding: 6px 14px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    #doc-list {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .doc-tag {
+      background: #2d2f45;
+      color: #a5b4fc;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+    }
+
+    /* Query */
+    textarea {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2d2f45;
+      border-radius: 8px;
+      color: #e8eaf6;
+      padding: 12px;
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 90px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #7c83fd; }
+
+    .options-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 12px 0;
+      flex-wrap: wrap;
+    }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: #9ca3af;
+      cursor: pointer;
+    }
+    input[type="checkbox"] { accent-color: #7c83fd; width: 16px; height: 16px; }
+
+    /* Answer */
+    #answer-box {
+      display: none;
+      margin-top: 16px;
+      background: #12151f;
+      border: 1px solid #2d2f45;
+      border-radius: 8px;
+      padding: 18px;
+    }
+    #answer-box .technique-badge {
+      display: inline-block;
+      background: #312e81;
+      color: #a5b4fc;
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+    #answer-text { line-height: 1.7; color: #d1d5db; font-size: 0.95rem; white-space: pre-wrap; }
+    #sources-list { margin-top: 10px; font-size: 0.8rem; color: #6b7280; }
+
+    /* Status */
+    #status {
+      font-size: 0.85rem;
+      margin-top: 10px;
+      min-height: 20px;
+      color: #6ee7b7;
+    }
+    #status.error { color: #f87171; }
+
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid #3b3f5c;
+      border-top-color: #7c83fd;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📄 Gen-AI Document Assistant</h1>
+  <p>Upload documents · Ask questions · Powered by LangChain + OpenAI</p>
+</header>
+
+<div class="container">
+
+  <!-- Upload Card -->
+  <div class="card">
+    <h2>📁 Upload Documents</h2>
+    <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div class="icon">⬆️</div>
+      <p>Click to upload PDF or TXT files</p>
+      <input type="file" id="file-input" accept=".pdf,.txt" multiple />
+    </div>
+    <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+      <button class="btn btn-primary" id="upload-btn" disabled>Upload</button>
+      <button class="btn btn-danger" onclick="clearDocs()">Clear All</button>
+      <span class="spinner" id="upload-spinner"></span>
+    </div>
+    <div id="status"></div>
+    <div id="doc-list"></div>
+  </div>
+
+  <!-- Query Card -->
+  <div class="card">
+    <h2>💬 Ask a Question</h2>
+    <textarea id="question" placeholder="e.g. What is the main conclusion of the document?"></textarea>
+    <div class="options-row">
+      <label class="toggle-label">
+        <input type="checkbox" id="cot-toggle" checked />
+        Use Chain-of-Thought Prompting
+      </label>
+      <span style="color:#4b5563; font-size:0.8rem;">(unchecked = Few-Shot Prompting)</span>
+    </div>
+    <button class="btn btn-primary" id="ask-btn" onclick="askQuestion()">
+      Ask <span class="spinner" id="ask-spinner"></span>
+    </button>
+
+    <div id="answer-box">
+      <div class="technique-badge" id="technique-label"></div>
+      <div id="answer-text"></div>
+      <div id="sources-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const API = '';  // Same origin
+
+  let selectedFiles = [];
+
+  document.getElementById('file-input').addEventListener('change', (e) => {
+    selectedFiles = Array.from(e.target.files);
+    document.getElementById('upload-btn').disabled = selectedFiles.length === 0;
+    setStatus(`${selectedFiles.length} file(s) selected.`, false);
+  });
+
+  document.getElementById('upload-btn').addEventListener('click', uploadFiles);
+
+  async function uploadFiles() {
+    if (!selectedFiles.length) return;
+    toggleSpinner('upload-spinner', true);
+    setStatus('Uploading and indexing...', false);
+
+    for (const file of selectedFiles) {
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        const res = await fetch(`${API}/upload`, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail);
+        setStatus(`✅ "${data.filename}" indexed (${data.chunks_indexed} chunks)`, false);
+      } catch (err) {
+        setStatus(`❌ ${err.message}`, true);
+      }
+    }
+
+    toggleSpinner('upload-spinner', false);
+    selectedFiles = [];
+    document.getElementById('file-input').value = '';
+    document.getElementById('upload-btn').disabled = true;
+    loadDocuments();
+  }
+
+  async function loadDocuments() {
+    try {
+      const res = await fetch(`${API}/documents`);
+      const data = await res.json();
+      const list = document.getElementById('doc-list');
+      list.innerHTML = data.documents.map(d => `<span class="doc-tag">📄 ${d}</span>`).join('');
+    } catch {}
+  }
+
+  async function clearDocs() {
+    if (!confirm('Clear all documents?')) return;
+    await fetch(`${API}/documents`, { method: 'DELETE' });
+    document.getElementById('doc-list').innerHTML = '';
+    document.getElementById('answer-box').style.display = 'none';
+    setStatus('All documents cleared.', false);
+  }
+
+  async function askQuestion() {
+    const question = document.getElementById('question').value.trim();
+    if (!question) return alert('Please enter a question.');
+    const cot = document.getElementById('cot-toggle').checked;
+
+    toggleSpinner('ask-spinner', true);
+    document.getElementById('ask-btn').disabled = true;
+    document.getElementById('answer-box').style.display = 'none';
+
+    try {
+      const res = await fetch(`${API}/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, use_chain_of_thought: cot })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail);
+
+      document.getElementById('technique-label').textContent = `🧠 ${data.prompt_technique}`;
+      document.getElementById('answer-text').textContent = data.answer;
+      document.getElementById('sources-list').textContent =
+        data.sources.length ? `Sources: ${data.sources.join(', ')}` : '';
+      document.getElementById('answer-box').style.display = 'block';
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+
+    toggleSpinner('ask-spinner', false);
+    document.getElementById('ask-btn').disabled = false;
+  }
+
+  function setStatus(msg, isError) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = isError ? 'error' : '';
+  }
+
+  function toggleSpinner(id, show) {
+    document.getElementById(id).style.display = show ? 'inline-block' : 'none';
+  }
+
+  // Load docs on page open
+  loadDocuments();
+</script>
+</body>
+</html>
