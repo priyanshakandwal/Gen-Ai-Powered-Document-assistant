@@ -106,7 +106,7 @@ gen-ai-doc-assistant/
 ## ⚙️ Installation
 
 ```bash
-git clone 
+git clone https://github.com/priyanshakandwal/Gen-Ai-Powered-Document-assistant.git
 
 cd gen-ai-doc-assistant
 
